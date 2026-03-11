@@ -1,12 +1,92 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import Papa from 'papaparse';
 
-const API_BASE = '/api';
-const REFRESH_INTERVAL = 30000; // 30 seconds
+const SPREADSHEET_ID = '1zFpeOpQaeyvGLuClLbwJQV05wvd7SYUcyvnqo-4250w';
+// Direct CSV Export URLs
+const RESULTADOS_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=Resultados`;
+const FORMS_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=Form%20Responses%201`;
+
+const REFRESH_INTERVAL = 30000;
+
+// Shared Criteria config
+const CRITERIA_CONFIG = [
+  { id: 'NC01', name: 'Saludo corporativo' },
+  { id: 'NC02', name: 'Validación de datos' },
+  { id: 'NC03', name: 'Al finalizar la atención corta la llamada' },
+  { id: 'NC04', name: 'Speech de saludo' },
+  { id: 'NC05', name: 'Speech de despedida' },
+  { id: 'NC06', name: 'Buena expresión o modulación' },
+  { id: 'NC07', name: 'Evita uso de muletillas' },
+  { id: 'NC08', name: 'Utiliza frases de cortesía' },
+  { id: 'NC09', name: 'Usa un tono de voz adecuado' },
+  { id: 'NC10', name: 'Personaliza la atención' },
+  { id: 'C01', name: 'Brinda información correcta' },
+  { id: 'C02', name: 'Brinda información completa' },
+  { id: 'C03', name: 'No hace reformulación' },
+  { id: 'C04', name: 'Escucha sin interrumpir al cliente' },
+  { id: 'C05', name: 'Muestra seguridad y confianza' },
+  { id: 'C06', name: 'Se mantiene concentrado en la atención' },
+  { id: 'C07', name: 'Muestra empatía / Sin maltrato' },
+  { id: 'C08', name: 'Cliente atendido satisfactoriamente' },
+  { id: 'C09', name: 'No da beneficios' },
+  { id: 'C10', name: 'No sondea - no hace preguntas' },
+  { id: 'C11', name: 'No transmite sentido de urgencia' },
+  { id: 'C12', name: 'No maneja objeciones' },
+  { id: 'C13', name: 'Registra gestión (tipifica)' },
+  { id: 'C14', name: 'Registra gestión de forma correcta' },
+  { id: 'C15', name: 'Reitera pedido de información' },
+  { id: 'C16', name: 'Uso correcto de herramientas' },
+  { id: 'C17', name: 'Repite información innecesariamente' },
+  { id: 'C18', name: 'No brinda info confidencial' },
+  { id: 'C19', name: 'Realiza validación Yo Soy Yo' },
+  { id: 'C20', name: 'Fideliza' },
+  { id: 'C21', name: 'No precipita promociones' },
+  { id: 'C22', name: 'No brinda info de procesos internos' },
+  { id: 'C23', name: 'No propicia fraude' },
+  { id: 'C24', name: 'No valida datos del cliente' },
+];
+
+function normalizeName(name) {
+  if (!name || typeof name !== 'string') return '';
+  return name.trim().replace(/\s+/g, ' ')
+    .split(' ')
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
+}
+
+// Logic migrated from Backend for parsing Excel-format CSV exported rows
+function processRawRow(row, buValue) {
+  const criteriaDetail = {};
+  CRITERIA_CONFIG.forEach(c => {
+    const respKey = `${c.id}_RESPUESTA`;
+    const val = row[respKey] || '';
+    criteriaDetail[c.id] = {
+      respuesta: val,
+      cumple: val.toLowerCase().includes('si cumple')
+    };
+  });
+
+  return {
+    id: row.ID_EVALUACION || Math.random().toString(36).substr(2, 9),
+    evaluador: normalizeName(row.EVALUADOR_QA || row['Evaluador QA']),
+    supervisor: normalizeName(row.SUPERVISOR || row['Supervisor']),
+    asesor: normalizeName(row.ASESOR || row['Asesor']),
+    tipoEvaluacion: (row.TIPO_EVALUACION || row['Tipo de Evaluacion'] || 'VENTA').toUpperCase(),
+    campana: (buValue || row.BU || 'SIN CAMPAÑA').toUpperCase(),
+    notaFinal: parseFloat(row.NOTA_FINAL || row['Nota Final']) || 0,
+    pasaCriticos: (row.PASA_CRITICOS || row['Paso Criticos?'] || 'NO').toUpperCase(),
+    cuartil: (row.CUARTIL || row['Cuartil'] || 'Q2/Q3').toUpperCase(),
+    fechaLlamada: row.FECHA_LLAMADA || row['Fecha de la llamada'] || '',
+    observaciones: row.OBSERVACIONES_CALIDAD || row['OBSERVACIONES'] || '',
+    cliente: row.NOMBRE_CLIENTE || row['CLIENTE'] || 'N/A',
+    criteriaDetail
+  };
+}
 
 export function useData() {
   const [data, setData] = useState([]);
   const [summary, setSummary] = useState(null);
-  const [criteria, setCriteria] = useState([]);
+  const [criteria, setCriteria] = useState(CRITERIA_CONFIG);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -15,95 +95,70 @@ export function useData() {
   const fetchData = useCallback(async (isInitial = false) => {
     try {
       if (isInitial && data.length === 0) setLoading(true);
-      
-      const [dataRes, summaryRes] = await Promise.all([
-        fetch(`${API_BASE}/data`),
-        fetch(`${API_BASE}/summary`),
+
+      const [resRes, resForms] = await Promise.all([
+        fetch(RESULTADOS_URL),
+        fetch(FORMS_URL)
       ]);
 
-      if (!dataRes.ok || !summaryRes.ok) {
-        throw new Error('Failed to fetch data from API');
-      }
+      const csvRes = await resRes.text();
+      const csvForms = await resForms.text();
 
-      const dataJson = await dataRes.json();
-      const summaryJson = await summaryRes.json();
+      const parsedRes = Papa.parse(csvRes, { header: true, skipEmptyLines: true }).data;
+      const parsedForms = Papa.parse(csvForms, { header: true, skipEmptyLines: true }).data;
 
-      if (dataJson.success) {
-        setData(dataJson.data);
-        setLastUpdated(new Date(dataJson.timestamp));
-        localStorage.setItem('calidad_dashboard_data', JSON.stringify({
-          data: dataJson.data, 
-          timestamp: dataJson.timestamp 
-        }));
-      }
-      if (summaryJson.success) {
-        setSummary(summaryJson.summary);
-        localStorage.setItem('calidad_dashboard_summary', JSON.stringify(summaryJson.summary));
-      }
-      
+      const processed = parsedRes
+        .filter(r => (r.ID_EVALUACION || r['ID_EVALUACION']))
+        .map((r, i) => {
+          const bu = parsedForms[i] ? (parsedForms[i].BU || parsedForms[i].bu) : '';
+          return processRawRow(r, bu);
+        });
+
+      const computedSummary = computeFilteredSummary(processed);
+
+      setData(processed);
+      setSummary(computedSummary);
+      setLastUpdated(new Date());
+
+      localStorage.setItem('calidad_dashboard_data', JSON.stringify({
+        data: processed,
+        timestamp: new Date().getTime()
+      }));
+      localStorage.setItem('calidad_dashboard_summary', JSON.stringify(computedSummary));
       setError(null);
     } catch (err) {
-      console.error('Fetch error:', err);
-      if (data.length === 0) setError(err.message);
+      console.error(err);
+      if (data.length === 0) setError("Error al conectar con Google Sheets.");
     } finally {
       setLoading(false);
     }
   }, [data.length]);
 
-  const fetchCriteria = useCallback(async () => {
+  useEffect(() => {
     try {
-      const res = await fetch(`${API_BASE}/criteria`);
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success) setCriteria(json.criteria);
+      const cached = localStorage.getItem('calidad_dashboard_data');
+      const cachedSum = localStorage.getItem('calidad_dashboard_summary');
+      if (cached && cachedSum) {
+        const p = JSON.parse(cached);
+        setData(p.data);
+        setLastUpdated(new Date(p.timestamp));
+        setSummary(JSON.parse(cachedSum));
+        setLoading(false);
       }
-    } catch (err) {
-      console.error('Failed to fetch criteria:', err);
-    }
+    } catch(e){}
+    
+    fetchData(true);
+    intervalRef.current = setInterval(() => fetchData(false), REFRESH_INTERVAL);
+    return () => clearInterval(intervalRef.current);
   }, []);
 
-  useEffect(() => {
-    // Load from cache first for instant display
-    try {
-      const cachedData = localStorage.getItem('calidad_dashboard_data');
-      const cachedSummary = localStorage.getItem('calidad_dashboard_summary');
-      if (cachedData && cachedSummary) {
-        const parsed = JSON.parse(cachedData);
-        if (parsed.data && parsed.data.length > 0) {
-          setData(parsed.data);
-          setLastUpdated(new Date(parsed.timestamp));
-          setSummary(JSON.parse(cachedSummary));
-          setLoading(false);
-        }
-      }
-    } catch (e) {
-      console.error('Cache read error', e);
-    }
-
-    fetchData(true);
-    fetchCriteria();
-    
-    intervalRef.current = setInterval(() => fetchData(false), REFRESH_INTERVAL);
-    
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [fetchData, fetchCriteria]);
-
-  const refresh = useCallback(() => fetchData(false), [fetchData]);
+  const refresh = () => fetchData(false);
 
   return { data, summary, criteria, loading, error, lastUpdated, refresh };
 }
 
 export function useFilters(data) {
-  const [filters, setFilters] = useState({
-    evaluador: '',
-    supervisor: '',
-    asesor: '',
-    tipoEvaluacion: '',
-    campana: '',
-    cuartil: '',
-  });
+  const [filters, setFilters] = useState({ evaluador: '', supervisor: '', asesor: '', tipoEvaluacion: '', campana: '', cuartil: '' });
 
   const filteredData = data.filter(row => {
     if (filters.evaluador && row.evaluador !== filters.evaluador) return false;
@@ -116,39 +171,28 @@ export function useFilters(data) {
   });
 
   const uniqueValues = {
-    evaluadores: [...new Set(data.map(r => r.evaluador).filter(Boolean))].sort(),
-    supervisores: [...new Set(data.map(r => r.supervisor).filter(Boolean))].sort(),
-    asesores: [...new Set(data.map(r => r.asesor).filter(Boolean))].sort(),
-    tipos: [...new Set(data.map(r => r.tipoEvaluacion).filter(Boolean))].sort(),
-    campanas: [...new Set(data.map(r => r.campana).filter(Boolean))].sort(),
-    cuartiles: [...new Set(data.map(r => r.cuartil).filter(Boolean))].sort(),
+    evaluadores: Array.from(new Set(data.map(r => r.evaluador))).filter(Boolean).sort(),
+    supervisores: Array.from(new Set(data.map(r => r.supervisor))).filter(Boolean).sort(),
+    asesores: Array.from(new Set(data.map(r => r.asesor))).filter(Boolean).sort(),
+    tipos: Array.from(new Set(data.map(r => r.tipoEvaluacion))).filter(Boolean).sort(),
+    campanas: Array.from(new Set(data.map(r => r.campana))).filter(Boolean).sort(),
+    cuartiles: Array.from(new Set(data.map(r => r.cuartil))).filter(Boolean).sort(),
   };
 
-  const setFilter = (key, value) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
-  };
-
-  const clearFilters = () => {
-    setFilters({ evaluador: '', supervisor: '', asesor: '', tipoEvaluacion: '', campana: '', cuartil: '' });
-  };
-
+  const setFilter = (k, v) => setFilters(prev => ({ ...prev, [k]: v }));
+  const clearFilters = () => setFilters({ evaluador: '', supervisor: '', asesor: '', tipoEvaluacion: '', campana: '', cuartil: '' });
   const hasActiveFilters = Object.values(filters).some(v => v !== '');
 
   return { filters, filteredData, uniqueValues, setFilter, clearFilters, hasActiveFilters };
 }
 
-// Recompute summary from filtered data
 export function computeFilteredSummary(filteredData) {
   const total = filteredData.length;
-  if (total === 0) {
-    return { total: 0, avgNota: 0, passRate: 0, passCount: 0, q1Count: 0, q4Count: 0, scoreDistribution: [0,0,0,0], byEvaluator: {}, bySupervisor: {}, byTipo: {}, criteriaCompliance: {}, byDate: {} };
-  }
+  if (total === 0) return { total: 0, avgNota: 0, passRate: 0, scoreDistribution: [0,0,0,0], byEvaluator: {}, bySupervisor: {}, criteriaCompliance: {} };
 
   const avgNota = filteredData.reduce((s, r) => s + r.notaFinal, 0) / total;
   const passCount = filteredData.filter(r => r.pasaCriticos === 'SI').length;
   const passRate = (passCount / total) * 100;
-  const q1Count = filteredData.filter(r => r.cuartil === 'Q1').length;
-  const q4Count = filteredData.filter(r => r.cuartil === 'Q4').length;
 
   const buckets = [0, 0, 0, 0];
   filteredData.forEach(r => {
@@ -158,7 +202,6 @@ export function computeFilteredSummary(filteredData) {
     else buckets[3]++;
   });
 
-  // By evaluator
   const byEvaluator = {};
   filteredData.forEach(r => {
     if (!byEvaluator[r.evaluador]) byEvaluator[r.evaluador] = { total: 0, sumNota: 0, passCount: 0 };
@@ -168,10 +211,8 @@ export function computeFilteredSummary(filteredData) {
   });
   Object.keys(byEvaluator).forEach(k => {
     byEvaluator[k].avgNota = byEvaluator[k].sumNota / byEvaluator[k].total;
-    byEvaluator[k].passRate = (byEvaluator[k].passCount / byEvaluator[k].total) * 100;
   });
 
-  // By supervisor
   const bySupervisor = {};
   filteredData.forEach(r => {
     if (!bySupervisor[r.supervisor]) bySupervisor[r.supervisor] = { total: 0, sumNota: 0, passCount: 0 };
@@ -179,77 +220,32 @@ export function computeFilteredSummary(filteredData) {
     bySupervisor[r.supervisor].sumNota += r.notaFinal;
     if (r.pasaCriticos === 'SI') bySupervisor[r.supervisor].passCount++;
   });
-  Object.keys(bySupervisor).forEach(k => {
-    bySupervisor[k].avgNota = bySupervisor[k].sumNota / bySupervisor[k].total;
-    bySupervisor[k].passRate = (bySupervisor[k].passCount / bySupervisor[k].total) * 100;
+  Object.keys(bySupervisor).forEach(k => { bySupervisor[k].avgNota = bySupervisor[k].sumNota / bySupervisor[k].total; });
+
+  const criteriaCompliance = {};
+  CRITERIA_CONFIG.forEach(c => {
+    const compliant = filteredData.filter(r => r.criteriaDetail[c.id] && r.criteriaDetail[c.id].cumple).length;
+    criteriaCompliance[c.id] = { compliance: (compliant / total) * 100, compliant, total };
   });
 
-  // By tipo
   const byTipo = {};
   filteredData.forEach(r => {
-    if (!byTipo[r.tipoEvaluacion]) byTipo[r.tipoEvaluacion] = { total: 0, sumNota: 0, passCount: 0 };
+    if (!byTipo[r.tipoEvaluacion]) byTipo[r.tipoEvaluacion] = { total: 0, passCount: 0 };
     byTipo[r.tipoEvaluacion].total++;
-    byTipo[r.tipoEvaluacion].sumNota += r.notaFinal;
     if (r.pasaCriticos === 'SI') byTipo[r.tipoEvaluacion].passCount++;
-  });
-  Object.keys(byTipo).forEach(k => {
-    byTipo[k].avgNota = byTipo[k].sumNota / byTipo[k].total;
-    byTipo[k].passRate = (byTipo[k].passCount / byTipo[k].total) * 100;
-  });
-
-  // By campana
-  const byCampana = {};
-  filteredData.forEach(r => {
-    if (!byCampana[r.campana]) byCampana[r.campana] = { total: 0, sumNota: 0, passCount: 0 };
-    byCampana[r.campana].total++;
-    byCampana[r.campana].sumNota += r.notaFinal;
-    if (r.pasaCriticos === 'SI') byCampana[r.campana].passCount++;
-  });
-  Object.keys(byCampana).forEach(k => {
-    byCampana[k].avgNota = byCampana[k].sumNota / byCampana[k].total;
-    byCampana[k].passRate = (byCampana[k].passCount / byCampana[k].total) * 100;
-  });
-
-  // Criteria compliance
-  const criteriaIds = ['NC01','NC02','NC03','NC04','NC05','NC06','NC07','NC08','NC09','NC10',
-    'C01','C02','C03','C04','C05','C06','C07','C08','C09','C10','C11','C12',
-    'C13','C14','C15','C16','C17','C18','C19','C20','C21','C22','C23','C24'];
-  const criteriaCompliance = {};
-  criteriaIds.forEach(id => {
-    const compliant = filteredData.filter(r => r.criteriaDetail[id] && r.criteriaDetail[id].cumple).length;
-    criteriaCompliance[id] = {
-      compliance: total > 0 ? (compliant / total) * 100 : 0,
-      compliant,
-      total,
-    };
-  });
-
-  // By date
-  const byDate = {};
-  filteredData.forEach(r => {
-    const d = r.fechaLlamada || 'Sin Fecha';
-    if (!byDate[d]) byDate[d] = { total: 0, sumNota: 0, passCount: 0 };
-    byDate[d].total++;
-    byDate[d].sumNota += r.notaFinal;
-    if (r.pasaCriticos === 'SI') byDate[d].passCount++;
-  });
-  Object.keys(byDate).forEach(k => {
-    byDate[k].avgNota = byDate[k].sumNota / byDate[k].total;
+    byTipo[r.tipoEvaluacion].passRate = (byTipo[r.tipoEvaluacion].passCount / byTipo[r.tipoEvaluacion].total) * 100;
   });
 
   return {
     total,
     avgNota: Math.round(avgNota * 100) / 100,
     passRate: Math.round(passRate * 100) / 100,
-    passCount,
-    q1Count,
-    q4Count,
     scoreDistribution: buckets,
     byEvaluator,
     bySupervisor,
-    byCampana,
     byTipo,
     criteriaCompliance,
-    byDate,
+    q1Count: filteredData.filter(r => r.cuartil === 'Q1').length,
+    q4Count: filteredData.filter(r => r.cuartil === 'Q4').length,
   };
 }
