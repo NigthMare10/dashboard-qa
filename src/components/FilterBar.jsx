@@ -87,6 +87,20 @@ export default function FilterBar({ filters, uniqueValues, setFilter, clearFilte
         </select>
       </div>
 
+      <div className="filter-group">
+        <label className="filter-label">Evaluación</label>
+        <select
+          className="filter-select"
+          value={filters.evaluacion}
+          onChange={e => setFilter('evaluacion', e.target.value)}
+        >
+          <option value="">Todas</option>
+          {uniqueValues.evaluaciones.map(v => (
+            <option key={v} value={v}>{v}</option>
+          ))}
+        </select>
+      </div>
+
       {hasActiveFilters && (
         <button className="filter-clear" onClick={clearFilters}>
           ✕ Limpiar Filtros

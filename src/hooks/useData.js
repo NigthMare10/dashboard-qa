@@ -162,7 +162,7 @@ export function useData() {
 }
 
 export function useFilters(data) {
-  const [filters, setFilters] = useState({ evaluador: '', supervisor: '', asesor: '', tipoEvaluacion: '', campana: '', cuartil: '' });
+  const [filters, setFilters] = useState({ evaluador: '', supervisor: '', asesor: '', tipoEvaluacion: '', campana: '', cuartil: '', evaluacion: '' });
 
   const filteredData = data.filter(row => {
     if (filters.evaluador && row.evaluador !== filters.evaluador) return false;
@@ -171,6 +171,7 @@ export function useFilters(data) {
     if (filters.tipoEvaluacion && row.tipoEvaluacion !== filters.tipoEvaluacion) return false;
     if (filters.campana && row.campana !== filters.campana) return false;
     if (filters.cuartil && row.cuartil !== filters.cuartil) return false;
+    if (filters.evaluacion && row.evaluacion !== filters.evaluacion) return false;
     return true;
   });
 
@@ -181,10 +182,11 @@ export function useFilters(data) {
     tipos: Array.from(new Set(data.map(r => r.tipoEvaluacion))).filter(Boolean).sort(),
     campanas: Array.from(new Set(data.map(r => r.campana))).filter(Boolean).sort(),
     cuartiles: Array.from(new Set(data.map(r => r.cuartil))).filter(Boolean).sort(),
+    evaluaciones: Array.from(new Set(data.map(r => r.evaluacion))).filter(Boolean).sort(),
   };
 
   const setFilter = (k, v) => setFilters(prev => ({ ...prev, [k]: v }));
-  const clearFilters = () => setFilters({ evaluador: '', supervisor: '', asesor: '', tipoEvaluacion: '', campana: '', cuartil: '' });
+  const clearFilters = () => setFilters({ evaluador: '', supervisor: '', asesor: '', tipoEvaluacion: '', campana: '', cuartil: '', evaluacion: '' });
   const hasActiveFilters = Object.values(filters).some(v => v !== '');
 
   return { filters, filteredData, uniqueValues, setFilter, clearFilters, hasActiveFilters };
