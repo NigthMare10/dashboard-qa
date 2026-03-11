@@ -78,6 +78,7 @@ function processRawRow(row, buValue) {
     pasaCriticos: (row.PASA_CRITICOS || row['Paso Criticos?'] || 'NO').toUpperCase(),
     cuartil: (row.CUARTIL || row['Cuartil'] || 'Q2/Q3').toUpperCase(),
     fechaLlamada: row.FECHA_LLAMADA || row['Fecha de la llamada'] || '',
+    tiempoLlamada: row.TIEMPO_LLAMADA || row['Tiempo de llamada'] || row['TIEMPO_LLAMADA'] || '',
     observacionesCalidad: row.OBSERVACIONES_CALIDAD || row['OBSERVACIONES'] || row['OBSERVACIONES '] || row['Observaciones'] || '',
     evaluacion: buValue?.evaluacion || row.EVALUACION || row['EVALUACION'] || row['No. Evaluacion'] || '',
     cliente: row.NOMBRE_CLIENTE || row['CLIENTE'] || 'N/A',
