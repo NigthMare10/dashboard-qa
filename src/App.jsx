@@ -63,7 +63,7 @@ function App() {
             </div>
             <div>
               <h1 className="header-title">Calidad Dashboard</h1>
-              <p className="header-subtitle">Sistema de Evaluación · TIGO Postpago</p>
+              <p className="header-subtitle">Sistema de Evaluación · TIGO</p>
             </div>
           </div>
           <div className="header-right">

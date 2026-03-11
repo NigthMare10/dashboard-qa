@@ -61,6 +61,7 @@ function processRawRow(row, buValue) {
     const respKey = `${c.id}_RESPUESTA`;
     const val = row[respKey] || '';
     criteriaDetail[c.id] = {
+      puntos: parseFloat(row[`${c.id}_PUNTOS`]) || 0,
       respuesta: val,
       cumple: val.toLowerCase().includes('si cumple')
     };
@@ -72,12 +73,13 @@ function processRawRow(row, buValue) {
     supervisor: normalizeName(row.SUPERVISOR || row['Supervisor']),
     asesor: normalizeName(row.ASESOR || row['Asesor']),
     tipoEvaluacion: (row.TIPO_EVALUACION || row['Tipo de Evaluacion'] || 'VENTA').toUpperCase(),
-    campana: (buValue || row.BU || 'SIN CAMPAÑA').toUpperCase(),
+    campana: (buValue?.bu || row.BU || 'SIN CAMPAÑA').toUpperCase(),
     notaFinal: parseFloat(row.NOTA_FINAL || row['Nota Final']) || 0,
     pasaCriticos: (row.PASA_CRITICOS || row['Paso Criticos?'] || 'NO').toUpperCase(),
     cuartil: (row.CUARTIL || row['Cuartil'] || 'Q2/Q3').toUpperCase(),
     fechaLlamada: row.FECHA_LLAMADA || row['Fecha de la llamada'] || '',
-    observaciones: row.OBSERVACIONES_CALIDAD || row['OBSERVACIONES'] || '',
+    observacionesCalidad: row.OBSERVACIONES_CALIDAD || row['OBSERVACIONES'] || row['OBSERVACIONES '] || row['Observaciones'] || '',
+    evaluacion: buValue?.evaluacion || row.EVALUACION || row['EVALUACION'] || row['No. Evaluacion'] || '',
     cliente: row.NOMBRE_CLIENTE || row['CLIENTE'] || 'N/A',
     criteriaDetail
   };
@@ -108,10 +110,12 @@ export function useData() {
       const parsedForms = Papa.parse(csvForms, { header: true, skipEmptyLines: true }).data;
 
       const processed = parsedRes
-        .filter(r => (r.ID_EVALUACION || r['ID_EVALUACION']))
+        .filter(r => (r.ID_EVALUACION || r['ID_EVALUACION'] || r['Evaluador QA']))
         .map((r, i) => {
-          const bu = parsedForms[i] ? (parsedForms[i].BU || parsedForms[i].bu) : '';
-          return processRawRow(r, bu);
+          const formRow = parsedForms[i] || {};
+          const bu = formRow.BU || formRow.bu || '';
+          const evaluacion = formRow.Evaluacion || formRow.evaluacion || formRow['No.'] || '';
+          return processRawRow(r, { bu, evaluacion });
         });
 
       const computedSummary = computeFilteredSummary(processed);

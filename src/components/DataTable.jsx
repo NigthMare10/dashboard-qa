@@ -124,6 +124,7 @@ export default function DataTable({ data }) {
               <th onClick={() => handleSort('fechaLlamada')} className={sortKey === 'fechaLlamada' ? 'sorted' : ''}>
                 Fecha <SortIcon col="fechaLlamada" />
               </th>
+              <th>N° Eval</th>
               <th>Tiempo</th>
               <th>Observaciones</th>
             </tr>
@@ -160,7 +161,8 @@ export default function DataTable({ data }) {
                     </span>
                   </td>
                   <td>{row.fechaLlamada || '—'}</td>
-                  <td>{row.tiempoLlamada}</td>
+                  <td style={{ textAlign: 'center' }}>{row.evaluacion || '—'}</td>
+                  <td>{row.tiempoLlamada || '—'}</td>
                   <td>
                     <span className="obs-preview" title={row.observacionesCalidad}>
                       {row.observacionesCalidad || '—'}
