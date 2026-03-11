@@ -1,0 +1,253 @@
+/* Neon Splash Screen Styles */
+
+.splash-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: var(--bg-color);
+  z-index: 9999;
+  overflow: hidden;
+  transition: opacity 0.8s ease-out, visibility 0.8s ease-out;
+}
+
+.splash-screen.fade-out {
+  opacity: 0;
+  visibility: hidden;
+}
+
+/* Neon Text Animations */
+@keyframes neon-glow-text {
+  0%, 100% {
+    text-shadow: 
+      0 0 4px #fff,
+      0 0 10px #fff,
+      0 0 20px var(--accent-primary),
+      0 0 40px var(--accent-primary),
+      0 0 80px var(--accent-primary);
+  }
+  50% {
+    text-shadow: 
+      0 0 2px #fff,
+      0 0 5px #fff,
+      0 0 10px var(--accent-primary),
+      0 0 20px var(--accent-primary),
+      0 0 40px var(--accent-primary);
+  }
+}
+
+@keyframes title-enter {
+  0% { transform: translateY(-50px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes letter-flicker {
+  0%, 19.999%, 22%, 62.999%, 64%, 64.999%, 70%, 100% {
+    opacity: 1;
+    text-shadow: 
+      0 0 4px #fff,
+      0 0 10px #fff,
+      0 0 20px var(--accent-primary),
+      0 0 40px var(--accent-primary),
+      0 0 80px var(--accent-primary);
+  }
+  20%, 21.999%, 63%, 63.999%, 65%, 69.999% {
+    opacity: 0.4;
+    text-shadow: none;
+  }
+}
+
+.splash-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  animation: title-enter 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.splash-logo h1 {
+  font-size: 5rem;
+  font-weight: 900;
+  letter-spacing: 4px;
+  color: #fff;
+  margin: 0;
+  line-height: 1.1;
+  text-transform: uppercase;
+  animation: neon-glow-text 3s ease-in-out infinite alternate;
+}
+
+.splash-logo h1 span:nth-child(even) {
+  animation: letter-flicker 4s linear infinite;
+}
+
+.splash-logo h2 {
+  font-size: 2.5rem;
+  font-weight: 300;
+  letter-spacing: 8px;
+  color: #f0f0f0;
+  margin: 0;
+  text-transform: uppercase;
+  animation: neon-glow-text 4s ease-in-out infinite alternate-reverse;
+}
+
+.splash-divider {
+  width: 0;
+  height: 2px;
+  background: var(--accent-primary);
+  margin: 30px 0;
+  box-shadow: 0 0 10px var(--accent-primary), 0 0 20px var(--accent-primary);
+  animation: line-expand 1.5s cubic-bezier(0.16, 1, 0.3, 1) 0.5s forwards;
+}
+
+@keyframes line-expand {
+  to { width: 100%; }
+}
+
+.splash-dept {
+  font-size: 1.8rem;
+  font-weight: 500;
+  color: var(--accent-teal);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-bottom: 50px;
+  opacity: 0;
+  animation: fade-in-up 1s ease-out 1.2s forwards;
+}
+
+.splash-dept span {
+  text-shadow: 0 0 10px var(--accent-teal), 0 0 20px var(--accent-teal);
+}
+
+@keyframes fade-in-up {
+  0% { transform: translateY(20px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+/* Loader */
+.splash-loader {
+  width: 300px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+  opacity: 0;
+  animation: fade-in 0.5s ease-out 1.5s forwards;
+}
+
+.splash-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-teal));
+  box-shadow: 0 0 10px var(--accent-teal);
+  animation: load-progress 5.5s cubic-bezier(0.4, 0, 0.2, 1) 1.5s forwards;
+}
+
+@keyframes load-progress {
+  0% { width: 0%; }
+  20% { width: 15%; }
+  40% { width: 45%; }
+  60% { width: 68%; }
+  80% { width: 85%; }
+  100% { width: 100%; }
+}
+
+@keyframes fade-in {
+  to { opacity: 1; }
+}
+
+.splash-status {
+  margin-top: 15px;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+  opacity: 0;
+  animation: fade-in 1s ease-out 1.8s forwards, pulse 2s infinite 2.8s;
+}
+
+/* Background gradient blobs */
+.neon-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(100px);
+  z-index: 1;
+  opacity: 0.4;
+  animation: float 10s infinite ease-in-out;
+}
+
+.blob-1 {
+  width: 500px;
+  height: 500px;
+  background: var(--accent-primary);
+  top: -200px;
+  left: -200px;
+  animation-delay: 0s;
+}
+
+.blob-2 {
+  width: 400px;
+  height: 400px;
+  background: var(--accent-teal);
+  bottom: -150px;
+  right: -150px;
+  animation-delay: -3s;
+}
+
+.blob-3 {
+  width: 300px;
+  height: 300px;
+  background: var(--accent-purple);
+  top: 30%;
+  left: 40%;
+  animation-delay: -6s;
+  animation-duration: 15s;
+}
+
+@keyframes float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(50px, -50px) scale(1.1); }
+  50% { transform: translate(100px, 50px) scale(0.9); }
+  75% { transform: translate(-50px, 100px) scale(1.05); }
+}
+
+/* Header Neon App Logo */
+.header-logo-neon {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  text-shadow: 
+    0 0 2px #fff,
+    0 0 5px var(--accent-primary),
+    0 0 10px var(--accent-primary),
+    0 0 20px var(--accent-primary);
+  animation: neon-pulse 3s infinite alternate;
+  margin-right: 16px;
+  line-height: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.header-logo-neon span {
+  font-size: 0.8rem;
+  font-weight: 400;
+  letter-spacing: 4px;
+  color: var(--accent-teal);
+  text-shadow: 0 0 5px var(--accent-teal);
+}
+
+@keyframes neon-pulse {
+  0% { opacity: 0.8; filter: brightness(1); }
+  100% { opacity: 1; filter: brightness(1.2); }
+}
