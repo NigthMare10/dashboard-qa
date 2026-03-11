@@ -114,7 +114,7 @@ export function useData() {
         .map((r, i) => {
           const formRow = parsedForms[i] || {};
           const bu = formRow.BU || formRow.bu || '';
-          const evaluacion = formRow.Evaluacion || formRow.evaluacion || formRow['No.'] || '';
+          const evaluacion = formRow['Evaluacion '] || formRow.Evaluacion || formRow.evaluacion || formRow['No.'] || '';
           return processRawRow(r, { bu, evaluacion });
         });
 
@@ -236,10 +236,14 @@ export function computeFilteredSummary(filteredData) {
 
   const byTipo = {};
   filteredData.forEach(r => {
-    if (!byTipo[r.tipoEvaluacion]) byTipo[r.tipoEvaluacion] = { total: 0, passCount: 0 };
+    if (!byTipo[r.tipoEvaluacion]) byTipo[r.tipoEvaluacion] = { total: 0, sumNota: 0, passCount: 0 };
     byTipo[r.tipoEvaluacion].total++;
+    byTipo[r.tipoEvaluacion].sumNota += r.notaFinal;
     if (r.pasaCriticos === 'SI') byTipo[r.tipoEvaluacion].passCount++;
-    byTipo[r.tipoEvaluacion].passRate = (byTipo[r.tipoEvaluacion].passCount / byTipo[r.tipoEvaluacion].total) * 100;
+  });
+  Object.keys(byTipo).forEach(k => {
+    byTipo[k].avgNota = byTipo[k].sumNota / byTipo[k].total;
+    byTipo[k].passRate = (byTipo[k].passCount / byTipo[k].total) * 100;
   });
 
   return {

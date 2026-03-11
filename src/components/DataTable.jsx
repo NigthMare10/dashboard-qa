@@ -39,11 +39,11 @@ export default function DataTable({ data }) {
     if (search) {
       const s = search.toLowerCase();
       filtered = data.filter(r =>
-        r.asesor.toLowerCase().includes(s) ||
-        r.evaluador.toLowerCase().includes(s) ||
-        r.supervisor.toLowerCase().includes(s) ||
-        r.nombreCliente.toLowerCase().includes(s) ||
-        r.id.toLowerCase().includes(s)
+        (r.asesor || '').toLowerCase().includes(s) ||
+        (r.evaluador || '').toLowerCase().includes(s) ||
+        (r.supervisor || '').toLowerCase().includes(s) ||
+        (r.cliente || '').toLowerCase().includes(s) ||
+        String(r.id || '').toLowerCase().includes(s)
       );
     }
 

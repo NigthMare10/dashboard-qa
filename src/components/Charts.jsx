@@ -234,7 +234,7 @@ export function CriteriaComplianceChart({ summary, criteria }) {
   const chartData = useMemo(() => {
     const compliance = summary?.criteriaCompliance || {};
     // Show critical criteria compliance
-    const criticalCriteria = (criteria || []).filter(c => c.type === 'CRITICO').slice(0, 12);
+    const criticalCriteria = (criteria || []).filter(c => c.id && c.id.startsWith('C') && !c.id.startsWith('NC')).slice(0, 12);
     
     return {
       labels: criticalCriteria.map(c => c.name.length > 25 ? c.name.slice(0, 25) + '…' : c.name),
